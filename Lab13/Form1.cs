@@ -14,7 +14,6 @@ namespace Lab13
         public Form1()
         {
             InitializeComponent();
-
             var imgs = Lab11();
             pb1.Image = imgs.Item1;
             pb2.Image = imgs.Item2;
