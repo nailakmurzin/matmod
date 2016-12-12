@@ -18,49 +18,45 @@ namespace Lab13
             pb1.Image = imgs.Item1;
             pb2.Image = imgs.Item2;
 
-            pbEx2.Image = Lab13();
-            pbEx2.Image.Save(diagrammPath);
-            pbEx2.Refresh();
+            pbEx1.Image = Lab12();
+
+
+            // pbEx2.Image = Lab13();
+            //pbEx2.Refresh();
         }
-        public Bitmap DrawHist(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
+        public DataHist DrawHist(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
         {
-            int h = height - 20, hstart = 10, hh = h + hstart;
+            int h = height - 20, hstart = 10, yAxe = h + hstart;
             int w = width - 20;
             int wStart = 10;
-            var dict = new Dictionary<int, int>();
             int len = zVariables.Length;
-            float min = float.MaxValue, max = float.MinValue;
+
+            float minZ = float.MaxValue, maxZ = float.MinValue;
             for (int i = 0; i < len; ++i)
             {
                 float z = zVariables[i];
-                if (min > z) min = z;
-                if (max < z) max = z;
+                if (minZ > z) minZ = z;
+                if (maxZ < z) maxZ = z;
             }
-            float maxX = max - min;
-            int count = w / step;
-            float kk = count / maxX;
-            for (int i = 0; i <= count; i++) { dict.Add(i, 0); }
-            for (int i = 0, m = zVariables.Length; i < m; i++)
-            {
-                float x = ((zVariables[i] - min) * kk); // от 0 до 500
-                ++dict[(int)x];
-            }
+            // получаем максимально возможное число z от 0
+            float maxX = maxZ - minZ;
+            // получаем число возможных столбцов
+            int countColumns = w / step;
+            // соотношение столбцов к максимально возможному числу
+            float ScaleX = countColumns / maxX;
+
+            var dict = new Dictionary<int, int>();
+            for (int i = 0; i <= countColumns; i++) { dict.Add(i, 0); }
+            for (int i = 0, m = zVariables.Length; i < m; i++) { float x = ((zVariables[i] - minZ) * ScaleX); ++dict[(int)x]; }
             int maxY = int.MinValue;
             var dv = dict.Values.ToArray();
-            for (int i = 0; i <= count; i++)
-            {
-                int x = dv[i];
-                if (x > maxY)
-                {
-                    maxY = x;
-                }
-            }
+            for (int i = 0; i <= countColumns; i++) { int x = dv[i]; if (x > maxY) { maxY = x; } }
 
-            float kkk = maxY * 1f / h * 1f;
+            float ScaleY = (maxY * 1f) / (h * 1f);
 
-            for (int i = 0; i <= count; i++)
+            for (int i = 0; i <= countColumns; i++)
             {
-                dict[i] = (int)(dict[i] / kkk);
+                dict[i] = (int)(dict[i] / ScaleY);
             }
 
             Bitmap bp = new Bitmap(width, height);
@@ -69,84 +65,112 @@ namespace Lab13
             g.SmoothingMode = SmoothingMode.HighQuality;
             int k = 0;
 
-            int xCenter = 10 + (int)((-min / (max - min)) * w);
+            int xCenter = (int)(hstart + (-minZ / (maxZ - minZ)) * w);
             var penArx = new Pen(Color.Black, 1);
 
             foreach (var i in dict.Values)
             {
                 if (i != 0)
                 {
-                    g.DrawRectangle(pen, k * step + wStart, hh - i, step, i);
-                    g.FillRectangle(brush, k * step + wStart, hh - i, step, i);
+                    g.DrawRectangle(pen, k * step + wStart, yAxe - i, step, i);
+                    g.FillRectangle(brush, k * step + wStart, yAxe - i, step, i);
                 }
                 ++k;
             }
             var font = new Font("Microsoft Sans Serif", 7F, FontStyle.Regular, GraphicsUnit.Point, 204);
 
-
-            string maxXs = $"{(max):#.#}", minXs = $"{(min):#.#}";
-
+            string maxXs = $"{(maxZ):#.#}", minXs = $"{(minZ):#.#}", maxYS = $"{(maxY / (len * 1d)):0.000}";
 
             g.DrawLine(penArx, xCenter - 2, hstart, xCenter + 2, hstart);
-            g.DrawString($"{(maxY / (len * 1d)):0.000}", font, brush, xCenter, 0);
-            g.DrawLine(penArx, xCenter, hstart, xCenter, hh);
-            g.DrawLine(penArx, hstart, hh, w + hstart, hh);
+            g.DrawString(maxYS, font, brush, xCenter, 0);
 
-            g.DrawString(minXs, font, brush, wStart, hh);
+            g.DrawLine(penArx, xCenter, 0, xCenter, height);
+            g.DrawLine(penArx, 0, yAxe, width, yAxe);
+            //черта слева по x
+            g.DrawString(minXs, font, brush, wStart, yAxe);
             g.DrawLine(penArx, wStart, h + 8, wStart, h + 12);
-
-            g.DrawString(maxXs, font, brush, wStart + w - g.MeasureString(maxXs, font).Width, hh);
+            //черта справа по x
+            g.DrawString(maxXs, font, brush, wStart + w - g.MeasureString(maxXs, font).Width, yAxe);
             g.DrawLine(penArx, w + hstart, h + 8, w + hstart, h + 12);
-            g.DrawString("0", font, brush, xCenter, hh);
-            return bp;
+
+            g.DrawString("0", font, brush, xCenter, yAxe);
+
+            return new DataHist
+            {
+                Image = bp,
+                MinX = minZ,
+                Heigh = yAxe,
+                MaxX = maxZ,
+                MaxY = (maxY / (len * 1f)),
+                //ScaleY = (h / (maxY / (len * 1d)))/10,
+                ScaleY = ScaleY,
+                ScaleX = ScaleX * step,
+                CenterX = xCenter,
+                Dict = dict
+            };
+        }
+        public Image DrawFunc(DataHist hist, float[] xx, float[] yy, Pen pen, double correctX = 0, double correctY = 1)
+        {
+            Graphics g = Graphics.FromImage(hist.Image);
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            double scX = hist.ScaleX, scY = hist.ScaleY;
+            int xCenter = hist.CenterX, height = hist.Heigh;
+            float oldx = (float)(xx[0] * scX + xCenter), oldy = (float)(height - yy[0] * scY);
+            for (int i = 1, m = xx.Length; i < m; ++i)
+            {
+                float x = (float)(xx[i] * scX + xCenter + 10 + correctX), y = (float)(height - yy[i] * scY * correctY);
+                g.DrawLine(pen, oldx, oldy, x, y);
+                oldx = x;
+                oldy = y;
+            }
+            return hist.Image;
+        }
+        public Image DrawFunc(int width, int height, float[] xx, float[] yy, Pen pen, float correctX = 1, float correctY = 1)
+        {
+            Bitmap Image = new Bitmap(width, height);
+
+            Graphics g = Graphics.FromImage(Image);
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            g.DrawImage(ContextData.Lab11Img, new Point(0, 0));
+            float h = width / 2f;
+            float oldx = xx[0] * correctX + h, oldy = height - yy[0] * correctY;
+            for (int i = 1, m = xx.Length; i < m; ++i)
+            {
+                float x = xx[i] * correctX + h, y = height - yy[i] * correctY;
+                g.DrawLine(pen, oldx, oldy, x, y);
+                oldx = x;
+                oldy = y;
+            }
+            return Image;
+        }
+        public Image DrawFunc(Bitmap Image, float[] xx, float[] yy, Pen pen, float correctX = 1, float correctY = 1)
+        {
+            Graphics g = Graphics.FromImage(Image);
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            float h = Image.Width / 2f;
+            int height = Image.Height;
+            float oldx = xx[0] * correctX + h, oldy = height - yy[0] * correctY;
+            for (int i = 1, m = xx.Length; i < m; ++i)
+            {
+                float x = xx[i] * correctX + h, y = height - yy[i] * correctY;
+                g.DrawLine(pen, oldx, oldy, x, y);
+                oldx = x;
+                oldy = y;
+            }
+            return Image;
         }
 
-        public float[] Trim(float[] zV, int ogrXL, int ogrXR)
+        public Image Lab12()
         {
-            float[] temp = new float[zV.Length];
-            int len = 0;
-            for (int i = 0, m = zV.Length; i < m; ++i)
-            {
-                float z = zV[i];
-                if (z < ogrXR && z > ogrXL) { temp[len++] = z; }
-            }
-            float[] zVariables = new float[len];
-            for (int i = 0, m = len; i < m; ++i) { zVariables[i] = temp[i]; }
-            return zVariables;
-        }
+            // если картинка диаграммы существует
+            string diagrammPath = Application.StartupPath + @"\diagramm12.jpg";
+            var img = LoadDiagramm(diagrammPath);
+            if (img != null) return img;
 
-        
-        string diagrammPath = Application.StartupPath + @"\diagramm13.jpg";
-        public Image Lab13()
-        {
-            if (File.Exists(diagrammPath))
-            {
-                using (FileStream fs = new FileStream(diagrammPath, FileMode.Open))
-                {
-                    return Image.FromStream(fs);
-                }
-            }
-
-            string fileZ2 = Application.StartupPath + @"\ex2Z2.dat";
             int N = 10000000;
-            double l0 = 1 - 1 / (1 + 2);
-            double l1 = l0 + 1;
-            float[] z1;
-
-            if (File.Exists(fileZ2))
-            {
-                //var lines = File.ReadAllLines(filePath);
-                //N = lines.Length;
-                //z1 = new float[N];
-                //for (int i = 0; i < N; ++i) { z1[i] = float.Parse(lines[i]); }
-                using (BinaryReader reader = new BinaryReader(File.Open(fileZ2, FileMode.Open)))
-                {
-                    z1 = new float[reader.BaseStream.Length / 4];
-                    int j = 0;
-                    while (reader.BaseStream.Position != reader.BaseStream.Length) { z1[j++] = reader.ReadSingle(); }
-                }
-            }
-            else
+            string fileZ2 = Application.StartupPath + @"\ex1Normal.dat";
+            float[] z1 = LoadDataInMemory(fileZ2);
+            if (z1 == null)
             {
                 z1 = new float[N];
                 Parallel.For(0, N, i =>
@@ -158,61 +182,178 @@ namespace Lab13
                         t += API.TRAND.Exponential(1d);
                         k++;
                     }
-                    float z = API.GetZ2Sample(k, l1);
+                    double z = 0;
+                    for (int j = 0; j < k; j++) { z += API.TRAND.Normal(0, 1); }
+                    z1[i] = (float)z;
+                });
+                SaveData(z1, fileZ2);
+            }
+            ContextData.XLab12 = z1;
+            var hist1 = DrawHist(1000, 600, 2, z1, new SolidBrush(Color.Gold), new Pen(Color.Black, 0.001f));
+            hist1.Image.Save(diagrammPath);
+            return hist1.Image;
+        }
+        public Image Lab13()
+        {
+            // если картинка диаграммы существует
+            string diagrammPath = Application.StartupPath + @"\diagramm13.jpg";
+            var img = LoadDiagramm(diagrammPath);
+            if (img != null) return img;
+
+            int N = 10000000;
+            string fileZ2 = Application.StartupPath + @"\ex2Z2.dat";
+            float[] z1 = LoadData(fileZ2);
+            if (z1 == null)
+            {
+                z1 = new float[N];
+                Parallel.For(0, N, i =>
+                {
+                    double t = 0;
+                    int k = 0;
+                    while (t < 2000)
+                    {
+                        t += API.TRAND.Exponential(1d);
+                        k++;
+                    }
+                    float z = API.GetZ2Sample(k, ContextData.L1);
                     z1[i] = z;
                 });
-                using (BinaryWriter writer = new BinaryWriter(File.Open(fileZ2, FileMode.OpenOrCreate)))
-                {
-                    for (int i = 0, m = z1.Length; i < m; ++i) { writer.Write(z1[i]); }
-                }
-                //var text = new StringBuilder();
-                //for (int i = 0; i < N; ++i) { text.AppendLine(z1[i].ToString()); }
-                //File.WriteAllText(Application.StartupPath + @"\WriteText2.txt", text.ToString());
+                SaveData(z1, fileZ2);
             }
-            return DrawHist(1000, 600, 2, z1, new SolidBrush(Color.BlueViolet), new Pen(Color.Black, 0.001f));
+            ContextData.Z1Lab13 = z1;
+            var hist1 = DrawHist(1000, 600, 2, z1, new SolidBrush(Color.BlueViolet), new Pen(Color.Black, 0.001f));
+            hist1.Image.Save(diagrammPath);
+            return hist1.Image;
         }
         public Tuple<Image, Image> Lab11()
         {
             string fileZ1 = Application.StartupPath + @"\generateZ1.dat";
             string fileZ2 = Application.StartupPath + @"\generateZ2.dat";
             int n = 10000000;
-            int N = 2;
-            double l0 = 1 - 1 / (1 + N);
-            double l1 = l0 + 1;
-            Tuple<float[], float[]> z;
-            if (File.Exists(fileZ1) && File.Exists(fileZ2))
+
+            Tuple<float[], float[]> z = new Tuple<float[], float[]>(LoadDataInMemory(fileZ1), LoadDataInMemory(fileZ2));
+
+            if (z.Item1 == null || z.Item2 == null)
             {
-                float[] z1, z2;
-                using (BinaryReader reader = new BinaryReader(File.Open(fileZ1, FileMode.Open)))
-                {
-                    z1 = new float[reader.BaseStream.Length / 4];
-                    z2 = new float[z1.Length];
-                    int j = 0;
-                    while (reader.BaseStream.Position != reader.BaseStream.Length) { z1[j++] = reader.ReadSingle(); }
-                }
-                using (BinaryReader reader = new BinaryReader(File.Open(fileZ2, FileMode.Open)))
-                {
-                    int j = 0;
-                    while (reader.BaseStream.Position != reader.BaseStream.Length) { z2[j++] = reader.ReadSingle(); }
-                }
-                z = new Tuple<float[], float[]>(z1, z2);
+                z = API.GetZ1Z2(n, ContextData.L0, ContextData.L1);
+                SaveData(z.Item1, fileZ1);
+                SaveData(z.Item2, fileZ2);
             }
-            else
-            {
-                z = API.GetZ1Z2(n, l0, l1);
-                float[] z1 = z.Item1, z2 = z.Item2;
-                using (BinaryWriter writer = new BinaryWriter(File.Open(fileZ1, FileMode.OpenOrCreate)))
-                {
-                    for (int i = 0, m = z1.Length; i < m; ++i) { writer.Write(z1[i]); }
-                }
-                using (BinaryWriter writer = new BinaryWriter(File.Open(fileZ2, FileMode.OpenOrCreate)))
-                {
-                    for (int i = 0, m = z2.Length; i < m; ++i) { writer.Write(z2[i]); }
-                }
-            }
-            var img1 = DrawHist(1000, 600, 2, Trim(z.Item1, -30, 30), new SolidBrush(Color.DarkRed), new Pen(Color.Black, 0.001f));
-            var img2 = DrawHist(1000, 600, 2, z.Item2, new SolidBrush(Color.DarkOrange), new Pen(Color.Black, 0.001f));
-            return new Tuple<Image, Image>(img1, img2);
+            ContextData.Lab11 = z;
+            var img1 = DrawHist(1000, 600, 2, Trim(z.Item1, -30, 30), new SolidBrush(Color.Crimson), new Pen(Color.Black, 0.001f));
+            var img2 = DrawHist(1000, 600, 2, Trim(z.Item2, -10, 10), new SolidBrush(Color.DarkOrange), new Pen(Color.Black, 0.001f));
+
+
+            var x1 = GetMass(-30, 0, 0.2f);
+            var y1 = API.GetFunkPL0(x1, ContextData.L0, img1.MaxY);
+            var x2 = GetMass(-2.01f, 2.01f, 0.02f);
+            var y2 = API.GetFunkPL1(x2, ContextData.L1, img2.MaxY);
+            ContextData.Lab11 = new Tuple<float[], float[]>(x2, y2);
+            ContextData.Lab11Img = img2.Image;
+            //var img11 = DrawFunc(img1.Image, x1, y1, new Pen(Color.Blue, 2f), (float)img1.ScaleX, (float)img1.ScaleY);
+            var img22 = DrawFunc(img2.Image, x2, y2, new Pen(Color.Blue, 2f), 50, 2090);
+            return new Tuple<Image, Image>(DrawFunc(img1, x1, y1, new Pen(Color.Blue, 2f)), img22);
         }
+
+        public Image LoadDiagramm(string path)
+        {
+            if (File.Exists(path))
+            {
+                using (FileStream fs = new FileStream(path, FileMode.Open)) return Image.FromStream(fs);
+            }
+            return null;
+        }
+        public float[] LoadData(string path)
+        {
+            float[] z1;
+            if (!File.Exists(path)) return null;
+            using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
+            {
+                z1 = new float[reader.BaseStream.Length / 4];
+                int j = 0;
+                while (reader.BaseStream.Position != reader.BaseStream.Length) { z1[j++] = reader.ReadSingle(); }
+            }
+            return z1;
+        }
+        public float[] LoadDataInMemory(string path)
+        {
+            float[] z1;
+            if (!File.Exists(path)) return null;
+            var memoryStream = new MemoryStream(File.ReadAllBytes(path));
+            using (BinaryReader reader = new BinaryReader(memoryStream))
+            {
+                z1 = new float[reader.BaseStream.Length / 4];
+                int j = 0;
+                while (reader.BaseStream.Position != reader.BaseStream.Length) { z1[j++] = reader.ReadSingle(); }
+            }
+            return z1;
+        }
+        public void SaveData(float[] data, string path)
+        {
+            using (BinaryWriter writer = new BinaryWriter(File.Open(path, FileMode.OpenOrCreate)))
+            {
+                for (int i = 0, m = data.Length; i < m; ++i) { writer.Write(data[i]); }
+            }
+        }
+
+        public float[] GetMass(float min, float max, float step)
+        {
+            var list = new List<float>();
+            for (float i = min; i < max; i += step) { list.Add(i); }
+            return list.ToArray();
+        }
+        public float[] Trim(float[] zV, int ogrXl, int ogrXr)
+        {
+            float[] temp = new float[zV.Length];
+            int len = 0;
+            for (int i = 0, m = zV.Length; i < m; ++i)
+            {
+                float z = zV[i];
+                if (z < ogrXr && z > ogrXl) { temp[len++] = z; }
+            }
+            float[] zVariables = new float[len];
+            for (int i = 0, m = len; i < m; ++i) { zVariables[i] = temp[i]; }
+            return zVariables;
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            var x2 = ContextData.Lab11.Item1;
+            var y2 = ContextData.Lab11.Item2;
+            pbEx11.Image = DrawFunc(1000, 600, x2, y2, new Pen(Color.Black), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
+        }
+
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            var x2 = ContextData.Lab11.Item1;
+            var y2 = ContextData.Lab11.Item2;
+            pbEx11.Image = DrawFunc(1000, 600, x2, y2, new Pen(Color.Black), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
+        }
+    }
+
+    public static class ContextData
+    {
+        public static int Variant = 2;
+        public static double L0 = 1d - 1d / (1d + Variant);
+        public static double L1 = L0 + 1d;
+
+        public static float[] Z1Lab13;
+        public static float[] XLab12;
+        public static Tuple<float[], float[]> TXlab14;
+        public static float[] Z1Lab14;
+        public static Tuple<float[], float[]> Lab11;
+        public static Bitmap Lab11Img;
+    }
+
+    public struct DataHist
+    {
+        public Bitmap Image;
+        public float MinX, MaxX;
+        public float MaxY;
+        public double ScaleX;
+        public double ScaleY;
+        public int CenterX;
+        public int Heigh;
+        public Dictionary<int, int> Dict;
     }
 }
