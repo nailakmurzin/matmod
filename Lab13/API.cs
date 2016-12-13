@@ -314,10 +314,9 @@ namespace Lab13
                     continue;
                 }
                 double rez = 0;
-                double xxx = -x * 1d;
-                for (int j = 1; j < 280; ++j)
+                for (int j = 1; j < 270; ++j)
                 {
-                    double p = xxx * (-x);
+                    double p = Math.Pow(-x, j);
                     double c = GAMMA2((j / L1) + 1);
                     var b = Math.Sin(-(Math.PI * j) / 2d);
                     double a = Factorial(j, c);
@@ -327,6 +326,21 @@ namespace Lab13
                 y[i] = (float)rez;
             }
             return y;
+        }
+
+        public static float[] NormV(float[] xx, float d, int t)
+        {
+            int m = xx.Length;
+            float[] yy = new float[m];
+            float s = 4 * d * t;
+            for (int i = 0; i < m; ++i)
+            {
+                var x = xx[i];
+                double c = -x * x / s;
+                double a = Math.Exp(c);
+                yy[i] = (float)(a / Math.Sqrt(Math.PI * s));
+            }
+            return yy;
         }
     }
 }

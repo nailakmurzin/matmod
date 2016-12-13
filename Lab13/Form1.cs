@@ -14,15 +14,19 @@ namespace Lab13
         public Form1()
         {
             InitializeComponent();
+            // лаба 1.1 
             var imgs = Lab11();
+            // гистограмма с функцией распределения L0
             pb1.Image = imgs.Item1;
+            // гистограмма с функцией распределения L1
             pb2.Image = imgs.Item2;
 
+            // лаба 1.2 - пример 1
             pbEx1.Image = Lab12();
 
-
-            // pbEx2.Image = Lab13();
-            //pbEx2.Refresh();
+            // лаба 1.2 - пример 2
+            pbEx2.Image = Lab13();
+            pbEx2.Refresh();
         }
         public DataHist DrawHist(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
         {
@@ -102,8 +106,85 @@ namespace Lab13
                 Heigh = yAxe,
                 MaxX = maxZ,
                 MaxY = (maxY / (len * 1f)),
-                //ScaleY = (h / (maxY / (len * 1d)))/10,
-                ScaleY = ScaleY,
+                ScaleY = (h / (maxY / (len * 1d))) / 10,
+                //ScaleY = ScaleY,
+                ScaleX = ScaleX * step,
+                CenterX = xCenter,
+                Dict = dict
+            };
+        }
+
+        public DataHist DrawHist2(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
+        {
+            int h = height - 20, hstart = 10, yAxe = h + hstart;
+            int w = width - 20;
+            int wStart = 10;
+            int len = zVariables.Length;
+
+            float minZ = zVariables.Min(), maxZ = zVariables.Max();
+            // получаем максимально возможное число z от 0
+            float maxX = maxZ - minZ;
+            // получаем число возможных столбцов
+            int countColumns = w / step;
+            // соотношение столбцов к максимально возможному числу
+            float ScaleX = countColumns / maxX;
+
+            var dict = new Dictionary<int, int>();
+            for (int i = 0; i <= countColumns; i++) { dict.Add(i, 0); }
+            for (int i = 0, m = zVariables.Length; i < m; i++) { float x = ((zVariables[i] - minZ) * ScaleX); ++dict[(int)x]; }
+            int maxY = int.MinValue;
+            var dv = dict.Values.ToArray();
+            for (int i = 0; i <= countColumns; i++) { int x = dv[i]; if (x > maxY) { maxY = x; } }
+
+            float scaleYforDict = (maxY * 1f) / (h * 1f);
+
+            for (int i = 0; i <= countColumns; i++) { dict[i] = (int)(dict[i] / scaleYforDict); }
+
+            Bitmap bp = new Bitmap(width, height);
+            Graphics g = Graphics.FromImage(bp);
+            g.Clear(Color.AntiqueWhite);
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            int k = 0;
+
+            int xCenter = (int)(hstart + (-minZ / (maxZ - minZ)) * w);
+            var penArx = new Pen(Color.Black, 1);
+
+            foreach (var i in dict.Values)
+            {
+                if (i != 0)
+                {
+                    g.DrawRectangle(pen, k * step + wStart, yAxe - i, step, i);
+                    g.FillRectangle(brush, k * step + wStart, yAxe - i, step, i);
+                }
+                ++k;
+            }
+            var font = new Font("Microsoft Sans Serif", 7F, FontStyle.Regular, GraphicsUnit.Point, 204);
+
+            string maxXs = $"{(maxZ):#.#}", minXs = $"{(minZ):#.#}", maxYS = $"{(maxY / (len * 1d)):0.000}";
+
+            g.DrawLine(penArx, xCenter - 2, hstart, xCenter + 2, hstart);
+            g.DrawString(maxYS, font, brush, xCenter, 0);
+
+            g.DrawLine(penArx, xCenter, 0, xCenter, height);
+            g.DrawLine(penArx, 0, yAxe, width, yAxe);
+            //черта слева по x
+            g.DrawString(minXs, font, brush, wStart, yAxe);
+            g.DrawLine(penArx, wStart, h + 8, wStart, h + 12);
+            //черта справа по x
+            g.DrawString(maxXs, font, brush, wStart + w - g.MeasureString(maxXs, font).Width, yAxe);
+            g.DrawLine(penArx, w + hstart, h + 8, w + hstart, h + 12);
+
+            g.DrawString("0", font, brush, xCenter, yAxe);
+
+            return new DataHist
+            {
+                Image = bp,
+                MinX = minZ,
+                Heigh = yAxe,
+                MaxX = maxZ,
+                MaxY = (maxY / (len * 1f)),
+                ScaleY = (h / (maxY / (len * 1d))),
+                //ScaleY = ScaleY,
                 ScaleX = ScaleX * step,
                 CenterX = xCenter,
                 Dict = dict
@@ -125,7 +206,7 @@ namespace Lab13
             }
             return hist.Image;
         }
-        public Image DrawFunc(int width, int height, float[] xx, float[] yy, Pen pen, float correctX = 1, float correctY = 1)
+        public Image DrawFuncTest(int width, int height, float[] xx, float[] yy, Pen pen, float correctX = 1, float correctY = 1)
         {
             Bitmap Image = new Bitmap(width, height);
 
@@ -189,9 +270,14 @@ namespace Lab13
                 SaveData(z1, fileZ2);
             }
             ContextData.XLab12 = z1;
-            var hist1 = DrawHist(1000, 600, 2, z1, new SolidBrush(Color.Gold), new Pen(Color.Black, 0.001f));
-            hist1.Image.Save(diagrammPath);
-            return hist1.Image;
+            var hist1 = DrawHist2(1000, 600, 2, z1, new SolidBrush(Color.DarkSlateBlue), new Pen(Color.Black, 0.001f));
+            //hist1.Image.Save(diagrammPath);
+            var x1 = GetMass(-98, 98, 1f);
+            var y1 = API.NormV(x1, 0.5f / 2, 2000);
+            ContextData.Lab11 = new Tuple<float[], float[]>(x1, y1);
+            ContextData.Lab11Img = hist1.Image;
+            return HelperFunks.DrawFuncScaleMaxFunkY(hist1, x1, y1, new Pen(Color.Blue, 2f), 2d);
+            //return DrawFunc(hist1, x1, y1, new Pen(Color.Blue, 2f));
         }
         public Image Lab13()
         {
@@ -202,7 +288,7 @@ namespace Lab13
 
             int N = 10000000;
             string fileZ2 = Application.StartupPath + @"\ex2Z2.dat";
-            float[] z1 = LoadData(fileZ2);
+            float[] z1 = LoadDataInMemory(fileZ2);
             if (z1 == null)
             {
                 z1 = new float[N];
@@ -263,18 +349,6 @@ namespace Lab13
             }
             return null;
         }
-        public float[] LoadData(string path)
-        {
-            float[] z1;
-            if (!File.Exists(path)) return null;
-            using (BinaryReader reader = new BinaryReader(File.Open(path, FileMode.Open)))
-            {
-                z1 = new float[reader.BaseStream.Length / 4];
-                int j = 0;
-                while (reader.BaseStream.Position != reader.BaseStream.Length) { z1[j++] = reader.ReadSingle(); }
-            }
-            return z1;
-        }
         public float[] LoadDataInMemory(string path)
         {
             float[] z1;
@@ -320,14 +394,14 @@ namespace Lab13
         {
             var x2 = ContextData.Lab11.Item1;
             var y2 = ContextData.Lab11.Item2;
-            pbEx11.Image = DrawFunc(1000, 600, x2, y2, new Pen(Color.Black), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
+            pbEx11.Image = DrawFuncTest(1000, 600, x2, y2, new Pen(Color.Black, 2f), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
         }
 
         private void numericUpDown2_ValueChanged(object sender, EventArgs e)
         {
             var x2 = ContextData.Lab11.Item1;
             var y2 = ContextData.Lab11.Item2;
-            pbEx11.Image = DrawFunc(1000, 600, x2, y2, new Pen(Color.Black), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
+            pbEx11.Image = DrawFuncTest(1000, 600, x2, y2, new Pen(Color.Black), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
         }
     }
 
