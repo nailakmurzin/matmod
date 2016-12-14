@@ -342,5 +342,58 @@ namespace Lab13
             }
             return yy;
         }
+
+        public static Tuple<float[], float[]> GetFunkLog(int[] xx, int[] yy, float moveX)
+        {
+            int m = xx.Length;
+            List<float> x = new List<float>(), y = new List<float>();
+            var mx = (int)(moveX);
+            for (int i = 0; i < m; ++i)
+            {
+                var xxt = xx[i] + mx;
+                //if (xxt < 1) continue;
+                if (xxt < 1 || yy[i] < 1) continue;
+                var xt = (float)Math.Log(xxt);
+                //if (yy[i] < 1)
+                //{
+                //    x.Add(xt);
+                //    y.Add(0);
+                //}
+                var yt = (float)Math.Log(yy[i]);
+                //if (float.IsInfinity(yt)) continue;
+                x.Add(xt);
+                y.Add(yt);
+            }
+            return new Tuple<float[], float[]>(x.ToArray(), y.ToArray());
+        }
+        public static float[] Copy(this float[] array)
+        {
+            int m = array.Length;
+            var temp = new float[m];
+            for (int i = 0; i < m; ++i) { temp[i] = array[i]; }
+            return temp;
+        }
+        public static float[] CopyToFloat(this int[] array)
+        {
+            int m = array.Length;
+            var temp = new float[m];
+            for (int i = 0; i < m; ++i) { temp[i] = array[i]; }
+            return temp;
+        }
+
+        //public static float[] MoveValues(this float[] array, float value)
+        //{
+        //    int m = array.Length;
+        //    var temp = new float[m];
+        //    for (int i = 0; i < m; ++i) { temp[i] = array[i] + value; }
+        //    return temp;
+        //}
+        //public static float[] ScaleValues(this float[] array, float value)
+        //{
+        //    int m = array.Length;
+        //    var temp = new float[m];
+        //    for (int i = 0; i < m; ++i) { temp[i] = array[i] * value; }
+        //    return temp;
+        //}
     }
 }

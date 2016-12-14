@@ -22,11 +22,14 @@ namespace Lab13
             pb2.Image = imgs.Item2;
 
             // лаба 1.2 - пример 1
-            pbEx1.Image = Lab12();
+            //pbEx1.Image = Lab12();
+            string fileZ2 = Application.StartupPath + @"\ex1Normal.dat";
+            float[] z1 = LoadDataInMemory(fileZ2);
+            var hist = new Hist(z1, 1000, 600, 2, -160, 160) { Brush = new SolidBrush(Color.Fuchsia) };
+            pbEx1.Image = hist.Image;
 
             // лаба 1.2 - пример 2
             pbEx2.Image = Lab13();
-            pbEx2.Refresh();
         }
         public DataHist DrawHist(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
         {
@@ -58,10 +61,8 @@ namespace Lab13
 
             float ScaleY = (maxY * 1f) / (h * 1f);
 
-            for (int i = 0; i <= countColumns; i++)
-            {
-                dict[i] = (int)(dict[i] / ScaleY);
-            }
+            var nonScaleValues = dict.Values.ToArray();
+            for (int i = 0; i <= countColumns; i++) { dict[i] = (int)(dict[i] / ScaleY); }
 
             Bitmap bp = new Bitmap(width, height);
             Graphics g = Graphics.FromImage(bp);
@@ -102,18 +103,22 @@ namespace Lab13
             return new DataHist
             {
                 Image = bp,
+                NonScaleValueY = nonScaleValues,
+                MoveX = minZ * ScaleX,
                 MinX = minZ,
                 Heigh = yAxe,
                 MaxX = maxZ,
                 MaxY = (maxY / (len * 1f)),
                 ScaleY = (h / (maxY / (len * 1d))) / 10,
                 //ScaleY = ScaleY,
+                PaddingX = wStart,
+                PaddingY = yAxe,
+                Step = step,
                 ScaleX = ScaleX * step,
                 CenterX = xCenter,
                 Dict = dict
             };
         }
-
         public DataHist DrawHist2(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
         {
             int h = height - 20, hstart = 10, yAxe = h + hstart;
@@ -270,21 +275,21 @@ namespace Lab13
                 SaveData(z1, fileZ2);
             }
             ContextData.XLab12 = z1;
-            var hist1 = DrawHist2(1000, 600, 2, z1, new SolidBrush(Color.DarkSlateBlue), new Pen(Color.Black, 0.001f));
+            var hist1 = DrawHist2(1000, 600, 2, Trim(z1, -160, 160), new SolidBrush(Color.DarkSlateBlue), new Pen(Color.Black, 0.001f));
             //hist1.Image.Save(diagrammPath);
             var x1 = GetMass(-98, 98, 1f);
             var y1 = API.NormV(x1, 0.5f / 2, 2000);
             ContextData.Lab11 = new Tuple<float[], float[]>(x1, y1);
             ContextData.Lab11Img = hist1.Image;
-            return HelperFunks.DrawFuncScaleMaxFunkY(hist1, x1, y1, new Pen(Color.Blue, 2f), 2d);
+            return HelperFunks.DrawFuncScaleMaxFunkY(hist1, x1, y1, new Pen(Color.Blue, 2f), 1d);
             //return DrawFunc(hist1, x1, y1, new Pen(Color.Blue, 2f));
         }
         public Image Lab13()
         {
             // если картинка диаграммы существует
             string diagrammPath = Application.StartupPath + @"\diagramm13.jpg";
-            var img = LoadDiagramm(diagrammPath);
-            if (img != null) return img;
+            //Image img = LoadDiagramm(diagrammPath);
+            //if (img != null) return img;
 
             int N = 10000000;
             string fileZ2 = Application.StartupPath + @"\ex2Z2.dat";
@@ -307,9 +312,18 @@ namespace Lab13
                 SaveData(z1, fileZ2);
             }
             ContextData.Z1Lab13 = z1;
-            var hist1 = DrawHist(1000, 600, 2, z1, new SolidBrush(Color.BlueViolet), new Pen(Color.Black, 0.001f));
-            hist1.Image.Save(diagrammPath);
-            return hist1.Image;
+            var Z = Trim(z1, -5000, 5000);
+            var hist1 = DrawHist(1000, 600, 2, Z, new SolidBrush(Color.Black), new Pen(Color.Black, 0.001f));
+            pictureBox1.Image = hist1.Image;
+            var arrXX = hist1.Dict.Keys.ToArray();
+            var sourceXy = API.GetFunkLog(arrXX, hist1.NonScaleValueY, hist1.MoveX);
+
+            float scX, scY;
+            var xy = sourceXy.DrawFunkFromPoints(1000, 600, new Pen(Color.Red, 2f), out scX, out scY);
+            int l = sourceXy.Item1.Length;
+            var mnk = HelperFunks.MNKDraw(xy, sourceXy.Item1, sourceXy.Item2, (1 * l / 20), (4 * l / 9) - 1, new Pen(Color.Green, 2f), scX, scY, 600, (float)(-1 - ContextData.L1));
+            mnk.Save(diagrammPath);
+            return mnk;
         }
         public Tuple<Image, Image> Lab11()
         {
@@ -340,7 +354,6 @@ namespace Lab13
             var img22 = DrawFunc(img2.Image, x2, y2, new Pen(Color.Blue, 2f), 50, 2090);
             return new Tuple<Image, Image>(DrawFunc(img1, x1, y1, new Pen(Color.Blue, 2f)), img22);
         }
-
         public Image LoadDiagramm(string path)
         {
             if (File.Exists(path))
@@ -396,7 +409,6 @@ namespace Lab13
             var y2 = ContextData.Lab11.Item2;
             pbEx11.Image = DrawFuncTest(1000, 600, x2, y2, new Pen(Color.Black, 2f), (int)numericUpDown1.Value, (int)numericUpDown2.Value);
         }
-
         private void numericUpDown2_ValueChanged(object sender, EventArgs e)
         {
             var x2 = ContextData.Lab11.Item1;
@@ -421,6 +433,11 @@ namespace Lab13
 
     public struct DataHist
     {
+        public int[] NonScaleValueY;
+        public float MoveX;
+        public int Step;
+        public int PaddingX;
+        public int PaddingY;
         public Bitmap Image;
         public float MinX, MaxX;
         public float MaxY;
@@ -429,5 +446,126 @@ namespace Lab13
         public int CenterX;
         public int Heigh;
         public Dictionary<int, int> Dict;
+    }
+
+    public class Hist
+    {
+        private Graphics g;
+
+        #region publicParams
+        public Font Font { get; set; } = new Font("Microsoft Sans Serif", 7F, FontStyle.Regular, GraphicsUnit.Point, 204);
+        public SolidBrush ForeBrush { get; set; } = new SolidBrush(Color.Black);
+        public Brush Brush { get; set; } = new SolidBrush(Color.Green);
+        public Pen Pen { get; set; } = new Pen(Color.Black, 0.0001f);
+        public Pen PenAxes { get; set; } = new Pen(Color.Black, 1f) { EndCap = LineCap.ArrowAnchor };
+        public Padding Padding { get; set; } = new Padding(10);
+        #endregion
+
+        public Image Image { get; protected set; }
+        public Dictionary<int, int> Histogram { get; } = new Dictionary<int, int>();
+        public byte Step { get; protected set; }
+        public float[] TrimVariables { get; protected set; }
+        public float[] SourceVariables { get; protected set; }
+        public float MaxX { get; protected set; }
+        public float MaxY { get; protected set; }
+        public float MinX { get; protected set; }
+        public float DiapozonX { get; protected set; }
+        public float ScaleX { get; protected set; }
+        public float ScaleY { get; protected set; }
+        public int CenterX { get; protected set; }
+        public int TrimXMin { get; protected set; }
+        public int TrimXMax { get; protected set; }
+
+        public Hist(float[] variables, int width, int height, byte step, int trimXmin, int trimXmax)
+        {
+            Init(width, height, step, variables, trimXmin, trimXmax);
+        }
+        public void Init(int width, int height, byte step = 0, float[] variables = null, int trimXmin = 0, int trimXmax = 0)
+        {
+            if (variables != null)
+            {
+                SourceVariables = variables;
+                TrimVariables = variables;
+                if (trimXmin != trimXmax)
+                {
+                    TrimXMax = trimXmax;
+                    TrimXMin = trimXmin;
+                    TrimVariables = Trim(variables, trimXmin, trimXmax);
+                }
+                MaxX = TrimVariables.Max();
+                MinX = TrimVariables.Min();
+                DiapozonX = MaxX - MinX;
+            }
+            if (Step > 0) Step = step;
+            Step = step;
+            Image = new Bitmap(width, height);
+            g = Graphics.FromImage(Image);
+            g.Clear(Color.AntiqueWhite);
+            g.SmoothingMode = SmoothingMode.HighQuality;
+            Histogram.Clear();
+            // calculate
+
+            int h = height - 20, hstart = 10;
+            int w = width - 20;
+            int wStart = 10;
+
+            // получаем число возможных столбцов
+            int countColumns = w / Step;
+            // соотношение столбцов к максимально возможному числу
+            ScaleX = countColumns / DiapozonX;
+            //fill Dict keys
+            for (int i = 0; i < countColumns; i++) { Histogram.Add(i, 0); }
+            for (int i = 0, m = TrimVariables.Length; i < m; i++) { float x = ((TrimVariables[i] - MinX) * ScaleX); ++Histogram[(int)x]; }
+
+            MaxY = Histogram.Values.Max();
+            ScaleY = MaxY / h;
+            CenterX = (int)(hstart + (-MinX / DiapozonX) * w);
+            DrawHist();
+        }
+        public void DrawHist()
+        {
+            int width = Image.Width, height = Image.Height;
+            int h = height - Padding.Top - Padding.Bottom, yAxe = h + Padding.Left;
+            int w = width - Padding.Left - Padding.Right;
+
+            var dv = Histogram.Values.ToArray();
+            for (int i = 0, m = dv.Length; i < m; ++i)
+            {
+                if (dv[i] == 0) continue;
+                var y = dv[i] / ScaleY;
+                g.DrawRectangle(Pen, i * Step + Padding.Left, yAxe - y, Step, y);
+                g.FillRectangle(Brush, i * Step + Padding.Left, yAxe - y, Step, y);
+            }
+
+            string maxXs = $"{(MaxX):#.#}", minXs = $"{(MinX):#.#}", maxYS = $"{(MaxY / (TrimVariables.Length * 1d)):0.000}";
+
+            g.DrawLine(PenAxes, CenterX - 2, Padding.Top, CenterX + 2, Padding.Top);
+            g.DrawString(maxYS, Font, ForeBrush, CenterX, 0);
+
+            g.DrawLine(PenAxes, CenterX, 0, CenterX, height);
+            g.DrawLine(Pen, 0, yAxe, width, yAxe);
+            //черта слева по x
+            g.DrawString(minXs, Font, ForeBrush, Padding.Left, yAxe);
+            g.DrawLine(Pen, Padding.Left, h + 8, Padding.Left, h + 12);
+            //черта справа по x
+            g.DrawString(maxXs, Font, ForeBrush, Padding.Left + w - g.MeasureString(maxXs, Font).Width, yAxe);
+            g.DrawLine(Pen, w + Padding.Left, h + 8, w + Padding.Left, h + 12);
+
+            g.DrawString("0", Font, ForeBrush, CenterX, yAxe);
+        }
+
+        public static float[] Trim(float[] zV, int ogrXl, int ogrXr)
+        {
+            float[] temp = new float[zV.Length];
+            int len = 0;
+            for (int i = 0, m = zV.Length; i < m; ++i)
+            {
+                float z = zV[i];
+                if (z < ogrXr && z > ogrXl) { temp[len++] = z; }
+            }
+            float[] zVariables = new float[len];
+            for (int i = 0, m = len; i < m; ++i) { zVariables[i] = temp[i]; }
+            return zVariables;
+        }
     }
 }
