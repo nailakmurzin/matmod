@@ -275,7 +275,7 @@ namespace Lab13
             }
             return devision;
         }
-        public static float[] GetFunkPL0(float[] xx, double L0, float maxV = 0)
+        public static float[] GetFunkPL0(float[] xx, double L0)
         {
             float[] y = new float[xx.Length];
             for (int i = 0, m = xx.Length; i < m; ++i)
