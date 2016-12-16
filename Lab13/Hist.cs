@@ -57,7 +57,7 @@ namespace Lab13
         private Font _font = new Font("Microsoft Sans Serif", 7F, FontStyle.Regular, GraphicsUnit.Point, 204);
         private SolidBrush _foreBrush = new SolidBrush(Color.Black);
         private Pen _pen = new Pen(Color.Black, 0.0001f);
-        private Pen _penAxes = new Pen(Color.Black, 1f) { EndCap = LineCap.ArrowAnchor };
+        private Pen _penAxes = new Pen(Color.Black, 0.01f) { EndCap = LineCap.ArrowAnchor };
         private Padding _padding = new Padding(10);
         private Brush _brush = new SolidBrush(Color.Green);
 
@@ -154,11 +154,11 @@ namespace Lab13
 
             string maxXs = $"{(MaxX):#.#}", minXs = $"{(MinX):#.#}", maxYS = $"{(MaxY / (TrimVariables.Length * 1d)):0.000}";
 
-            g.DrawLine(_penAxes, CenterX - 2, _padding.Top, CenterX + 2, _padding.Top);
+            g.DrawLine(_pen, CenterX - 2, _padding.Top, CenterX + 2, _padding.Top);
             g.DrawString(maxYS, _font, _foreBrush, CenterX, 0);
-
-            g.DrawLine(_penAxes, CenterX, 0, CenterX, height);
-            g.DrawLine(_pen, 0, yAxe, width, yAxe);
+            //axeY
+            g.DrawLine(_penAxes, CenterX, height, CenterX, 0);
+            g.DrawLine(_penAxes, 0, yAxe, width, yAxe);
             //черта слева по x
             g.DrawString(minXs, _font, _foreBrush, _padding.Left, yAxe);
             g.DrawLine(_pen, _padding.Left, h + 8, _padding.Left, h + 12);
@@ -168,6 +168,7 @@ namespace Lab13
 
             g.DrawString("0", _font, _foreBrush, CenterX, yAxe);
         }
+
         public delegate void ChangeScale(
             ref double defaultScaleX,
             ref double defaultScaleY, Hist hist, float maxY, ref int moveX, ref int moveY);

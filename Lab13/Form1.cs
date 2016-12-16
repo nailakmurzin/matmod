@@ -16,9 +16,8 @@ namespace Lab13
             InitializeComponent();
             // лаба 1.1 
             var imgs = Lab11();
-            // гистограмма с функцией распределения L0
+            // гистограмма с функцией распределения L0,l1
             pb1.Image = imgs.Item1;
-            // гистограмма с функцией распределения L1
             pb2.Image = imgs.Item2;
 
             // лаба 1.2 - пример 1
@@ -26,6 +25,110 @@ namespace Lab13
 
             // лаба 1.2 - пример 2
             pbEx2.Image = Lab13();
+
+            pbEx3.Image = Lab14();
+        }
+
+        private Image Lab14()
+        {
+            string diagrammPath = Application.StartupPath + @"\diagramm14.jpg";
+            string fileZ2 = Application.StartupPath + @"\ex1Normal3.dat";
+            float[] z1 = LoadDataInMemory(fileZ2);
+            if (z1 == null)
+            {
+                int N = 1000000;
+                z1 = new float[N];
+                int t1 = 2000;
+                Parallel.For(t1, 2050, T =>
+                {
+                    float[] zz = new float[N];
+                    for (int i = 0; i < N; ++i)
+                    {
+                        double t = t1,x = 0;
+                        int k = 0;
+                        while (t < T)
+                        {
+                            t += API.TRAND.Exponential(1d);
+                            k++;
+                        }
+                        double z = 0;
+                        for (int j = 0; j < k; j++)
+                        {
+                            z += API.TRAND.Normal(0, 1);
+                        }
+                        zz[i] = (float)z;
+                    }
+                });
+                SaveData(z1, fileZ2);
+            }
+            var hist1 = new Hist(z1, 1000, 600, 2, -160, 160) { Brush = new SolidBrush(Color.DarkSlateBlue), Pen = new Pen(Color.Black, 0.001f) };
+            float[] x1 = GetMass(-160, 160, 1f), y1 = API.NormV(x1, 1f / 2, 2000);
+            var img = hist1.DrawFuncScaleMaxFunkY(x1, y1, new Pen(Color.Blue, 2f));
+            img.Save(diagrammPath);
+            return img;
+        }
+
+        public Tuple<Image, Image> Lab11()
+        {
+            string diagrammPath1 = Application.StartupPath + @"\diagramm11Z1.jpg";
+            string diagrammPath2 = Application.StartupPath + @"\diagramm11Z2.jpg";
+
+            string fileZ1 = Application.StartupPath + @"\generateZ1.dat";
+            string fileZ2 = Application.StartupPath + @"\generateZ2.dat";
+
+            Tuple<float[], float[]> z = new Tuple<float[], float[]>(LoadDataInMemory(fileZ1), LoadDataInMemory(fileZ2));
+            if (z.Item1 == null || z.Item2 == null)
+            {
+                z = API.GetZ1Z2(10000000, ContextData.L0, ContextData.L1);
+                SaveData(z.Item1, fileZ1);
+                SaveData(z.Item2, fileZ2);
+            }
+            var hist1 = new Hist(z.Item1, 1000, 600, 2, -30, 30) { Brush = new SolidBrush(Color.Crimson) };
+            var hist2 = new Hist(z.Item2, 1000, 600, 2, -20, 20) { Brush = new SolidBrush(Color.DarkOrange) };
+            var x1 = GetMass(-30, 0, 0.1f);
+            var y1 = API.GetFunkPL0(x1, ContextData.L0);
+            var x2 = GetMass(-2.01f, 2.01f, 0.02f);
+            var y2 = API.GetFunkPL1(x2, ContextData.L1);
+
+            var img1 = hist1.DrawFuncScaleMaxFunkY(x1, y1, new Pen(Color.Blue, 2f), (ref double x, ref double y, Hist hist, float maxY, ref int moveX, ref int moveY) =>
+            {
+                y = (hist.Image.Height / (hist.MaxY * 10d / (hist.TrimVariables.Length * 1d)));
+                moveX = 10;
+            });
+            img1.Save(diagrammPath1);
+            var img2 = hist2.DrawFuncScaleMaxFunkY(x2, y2, new Pen(Color.Blue, 2f));
+            img2.Save(diagrammPath2);
+            return new Tuple<Image, Image>(img1, img2);
+        }
+        public Image Lab12()
+        {
+            string diagrammPath = Application.StartupPath + @"\diagramm12.jpg";
+            string fileZ2 = Application.StartupPath + @"\ex1Normal.dat";
+            float[] z1 = LoadDataInMemory(fileZ2);
+            if (z1 == null)
+            {
+                int N = 10000000;
+                z1 = new float[N];
+                Parallel.For(0, N, i =>
+                {
+                    double t = 0;
+                    int k = 0;
+                    while (t < 2000)
+                    {
+                        t += API.TRAND.Exponential(1d);
+                        k++;
+                    }
+                    double z = 0;
+                    for (int j = 0; j < k; j++) { z += API.TRAND.Normal(0, 1); }
+                    z1[i] = (float)z;
+                });
+                SaveData(z1, fileZ2);
+            }
+            var hist1 = new Hist(z1, 1000, 600, 2, -160, 160) { Brush = new SolidBrush(Color.DarkSlateBlue), Pen = new Pen(Color.Black, 0.001f) };
+            float[] x1 = GetMass(-160, 160, 1f), y1 = API.NormV(x1, 1f / 2, 2000);
+            var img = hist1.DrawFuncScaleMaxFunkY(x1, y1, new Pen(Color.Blue, 2f));
+            img.Save(diagrammPath);
+            return img;
         }
         public DataHist DrawHist(int width, int height, byte step, float[] zVariables, Brush brush, Pen pen)
         {
@@ -115,24 +218,6 @@ namespace Lab13
                 Dict = dict
             };
         }
-
-
-        public Image DrawFunc(DataHist hist, float[] xx, float[] yy, Pen pen, double correctX = 0, double correctY = 1)
-        {
-            Graphics g = Graphics.FromImage(hist.Image);
-            g.SmoothingMode = SmoothingMode.HighQuality;
-            double scX = hist.ScaleX, scY = hist.ScaleY;
-            int xCenter = hist.CenterX, height = hist.Heigh;
-            float oldx = (float)(xx[0] * scX + xCenter), oldy = (float)(height - yy[0] * scY);
-            for (int i = 1, m = xx.Length; i < m; ++i)
-            {
-                float x = (float)(xx[i] * scX + xCenter + 10 + correctX), y = (float)(height - yy[i] * scY * correctY);
-                g.DrawLine(pen, oldx, oldy, x, y);
-                oldx = x;
-                oldy = y;
-            }
-            return hist.Image;
-        }
         public Image DrawFuncTest(int width, int height, float[] xx, float[] yy, Pen pen, float correctX = 1, float correctY = 1)
         {
             Bitmap Image = new Bitmap(width, height);
@@ -151,53 +236,7 @@ namespace Lab13
             }
             return Image;
         }
-        public Image DrawFunc(Bitmap image, float[] xx, float[] yy, Pen pen, float correctX = 1, float correctY = 1)
-        {
-            Graphics g = Graphics.FromImage(image);
-            g.SmoothingMode = SmoothingMode.HighQuality;
-            float h = image.Width / 2f;
-            int height = image.Height;
-            float oldx = xx[0] * correctX + h, oldy = height - yy[0] * correctY;
-            for (int i = 1, m = xx.Length; i < m; ++i)
-            {
-                float x = xx[i] * correctX + h, y = height - yy[i] * correctY;
-                g.DrawLine(pen, oldx, oldy, x, y);
-                oldx = x;
-                oldy = y;
-            }
-            return image;
-        }
 
-        public Image Lab12()
-        {
-            string diagrammPath = Application.StartupPath + @"\diagramm12.jpg";
-            string fileZ2 = Application.StartupPath + @"\ex1Normal.dat";
-            float[] z1 = LoadDataInMemory(fileZ2);
-            if (z1 == null)
-            {
-                int N = 10000000;
-                z1 = new float[N];
-                Parallel.For(0, N, i =>
-                {
-                    double t = 0;
-                    int k = 0;
-                    while (t < 2000)
-                    {
-                        t += API.TRAND.Exponential(1d);
-                        k++;
-                    }
-                    double z = 0;
-                    for (int j = 0; j < k; j++) { z += API.TRAND.Normal(0, 1); }
-                    z1[i] = (float)z;
-                });
-                SaveData(z1, fileZ2);
-            }
-            var hist1 = new Hist(z1, 1000, 600, 2, -160, 160) { Brush = new SolidBrush(Color.DarkSlateBlue), Pen = new Pen(Color.Black, 0.001f) };
-            float[] x1 = GetMass(-160, 160, 1f), y1 = API.NormV(x1, 1f / 2, 2000);
-            var img = hist1.DrawFuncScaleMaxFunkY(x1, y1, new Pen(Color.Blue, 2f));
-            img.Save(diagrammPath);
-            return img;
-        }
         public Image Lab13()
         {
             // если картинка диаграммы существует
@@ -227,10 +266,9 @@ namespace Lab13
             }
             ContextData.Z1Lab13 = z1;
             var Z = Trim(z1, -5000, 5000);
-            var hist1 = DrawHist(1000, 600, 2, Z, new SolidBrush(Color.Black), new Pen(Color.Black, 0.001f));
-            pictureBox1.Image = hist1.Image;
-            var arrXX = hist1.Dict.Keys.ToArray();
-            var sourceXy = API.GetFunkLog(arrXX, hist1.NonScaleValueY, hist1.MoveX);
+            var hist = new Hist(z1, 1000, 600, 2, -5000, 5000) { Brush = new SolidBrush(Color.Red) };
+            pictureBox1.Image = hist.Image;
+            var sourceXy = API.GetFunkLog(hist.Histogram.Keys.ToArray(), hist.Histogram.Values.ToArray(), hist.MinX * hist.ScaleX);
 
             float scX, scY;
             var xy = sourceXy.DrawFunkFromPoints(1000, 600, new Pen(Color.Red, 2f), out scX, out scY);
@@ -238,50 +276,6 @@ namespace Lab13
             var mnk = HelperFunks.MNKDraw(xy, sourceXy.Item1, sourceXy.Item2, (1 * l / 20), (4 * l / 9) - 1, new Pen(Color.Green, 2f), scX, scY, 600, (float)(-1 - ContextData.L1));
             mnk.Save(diagrammPath);
             return mnk;
-        }
-        public Tuple<Image, Image> Lab11()
-        {
-            string fileZ1 = Application.StartupPath + @"\generateZ1.dat";
-            string fileZ2 = Application.StartupPath + @"\generateZ2.dat";
-            int n = 10000000;
-
-            Tuple<float[], float[]> z = new Tuple<float[], float[]>(LoadDataInMemory(fileZ1), LoadDataInMemory(fileZ2));
-
-            if (z.Item1 == null || z.Item2 == null)
-            {
-                z = API.GetZ1Z2(n, ContextData.L0, ContextData.L1);
-                SaveData(z.Item1, fileZ1);
-                SaveData(z.Item2, fileZ2);
-            }
-            var hist1 = new Hist(z.Item1, 1000, 600, 2, -30, 30) { Brush = new SolidBrush(Color.Crimson) };
-            //var hist2 = new Hist(z.Item2, 1000, 600, 2, -10, 10) { Brush = new SolidBrush(Color.DarkOrange) };
-            //var img1 = DrawHist(1000, 600, 2, Trim(z.Item1, -30, 30), new SolidBrush(Color.Crimson), new Pen(Color.Black, 0.001f));
-            var img2 = DrawHist(1000, 600, 2, Trim(z.Item2, -10, 10), new SolidBrush(Color.DarkOrange), new Pen(Color.Black, 0.001f));
-
-            var x1 = GetMass(-30, 0, 0.2f);
-            var y1 = API.GetFunkPL0(x1, ContextData.L0);
-
-            var x2 = GetMass(-2.01f, 2.01f, 0.02f);
-            var y2 = API.GetFunkPL1(x2, ContextData.L1, img2.MaxY);
-            //var img11 = DrawFunc(img1.Image, x1, y1, new Pen(Color.Blue, 2f), (float)img1.ScaleX, (float)img1.ScaleY);
-            var img22 = DrawFunc(img2.Image, x2, y2, new Pen(Color.Blue, 2f), 50, 2090);
-            Hist.ChangeScale action =
-                (ref double x, ref double y, Hist hist, float maxY, ref int moveX, ref int moveY) =>
-                {
-                    y = (hist.Image.Height / (hist.MaxY / (hist.TrimVariables.Length * 1d))) / 10;
-                    moveX = 10;
-                };
-            return new Tuple<Image, Image>(hist1.DrawFuncScaleMaxFunkY(x1, y1, new Pen(Color.Blue, 2f), action), img22);
-
-            //return new Tuple<Image, Image>(DrawFunc(img1, x1, y1, new Pen(Color.Blue, 2f)), img22);
-        }
-        public Image LoadDiagramm(string path)
-        {
-            if (File.Exists(path))
-            {
-                using (FileStream fs = new FileStream(path, FileMode.Open)) return Image.FromStream(fs);
-            }
-            return null;
         }
         public float[] LoadDataInMemory(string path)
         {
