@@ -43,8 +43,7 @@ namespace Lab13
                 double b1 = Math.Pow(Math.Cos((l0 - 1) * o) / w, (1 - l0) * al0);
 
                 double a2 = Math.Sin(l1 * o) / Math.Pow(Math.Cos(o), al1);
-                double b = Math.Cos((l1 - 1) * o) / w;
-                double b2 = Math.Pow(b, (1 - l1) * al1);
+                double b2 = Math.Pow(Math.Cos((l1 - 1) * o) / w, (1 - l1) * al1);
                 z1[i] = (float)(a1 * b1);
                 z2[i] = (float)(a2 * b2);
             });
